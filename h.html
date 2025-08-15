@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AI‑Powered NLP: From Language Models to Chatbots & Beyond</title>
+  <style>
+    :root{
+      --bg:#0b1020; --panel:#111735; --ink:#e9ecff; --muted:#9aa3c7; --accent:#6ea8fe;
+      --card:#18224a; --chip:#1f2a5c; --good:#22c55e; --bad:#ef4444; --warn:#f59e0b;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;min-height:100vh;display:flex;flex-direction:column}
+    header{padding:14px 16px;background:linear-gradient(90deg,#0f172a,#111b3d 60%,#0f172a);display:flex;align-items:center;gap:12px;justify-content:space-between;border-bottom:1px solid #1d2a5a;position:sticky;top:0;z-index:20}
+    header h1{margin:0;font-size:18px;letter-spacing:.2px;font-weight:700}
+    header .sub{color:var(--muted);font-size:12px}
+    .container{display:grid;grid-template-columns:320px 1fr 340px;gap:12px;padding:12px;max-width:1300px;width:100%;margin:0 auto;flex:1}
+    .panel{background:var(--panel);border:1px solid #223071;border-radius:14px}
+    .left,.right{padding:12px;max-height:calc(100vh - 86px);overflow:auto;position:sticky;top:74px}
+    .card{background:var(--card);border:1px solid #243271;border-radius:12px;padding:12px;margin-bottom:10px}
+    .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .chip{background:var(--chip);border:1px solid #2b3974;padding:6px 10px;border-radius:999px;font-size:12px;cursor:default}
+    .btn{background:var(--chip);border:1px solid #2b3974;color:var(--ink);padding:8px 10px;border-radius:10px;cursor:pointer;font-weight:600}
+    .btn.small{padding:6px 8px;border-radius:8px;font-size:12px}
+    input,textarea,select{background:#0e1532;color:var(--ink);border:1px solid #2b3974;border-radius:10px;padding:10px;width:100%}
+    textarea{min-height:110px}
+    a{color:var(--accent)}
+
+    /* Chat */
+    .chat{display:flex;flex-direction:column}
+    .messages{flex:1;min-height:300px;max-height:calc(100vh - 210px);overflow:auto;padding:16px;display:flex;flex-direction:column;gap:10px}
+    .msg{max-width:72%;padding:12px 14px;border-radius:16px;font-size:15px;line-height:1.35}
+    .me{align-self:flex-end;background:#2b3c7a;border-bottom-right-radius:4px}
+    .bot{align-self:flex-start;background:#111938;border-bottom-left-radius:4px;border:1px solid #273679}
+    .meta{font-size:12px;color:var(--muted);margin-top:6px}
+    .footer{display:flex;gap:8px;padding:10px;border-top:1px solid #1f2b5e}
+
+    /* Sessions ribbon */
+    .sessions{display:flex;gap:8px;overflow:auto;padding:10px;border-bottom:1px solid #1f2b5e}
+    .session-chip{white-space:nowrap}
+
+    /* Quick replies */
+    .quick{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+    .quick button{background:#0f1a46;border:1px solid #2b3974;color:var(--ink);border-radius:14px;padding:6px 10px;font-size:12px;cursor:pointer}
+
+    /* Inspector */
+    code,pre{background:#0e1532;border:1px solid #223072;padding:10px;border-radius:10px;overflow:auto}
+    details summary{cursor:pointer}
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>AI‑Powered NLP Assistant</h1>
+      <div class="sub">From Language Models to Chatbots & Beyond — single‑file demo</div>
+    </div>
+    <div class="row">
+      <button id="btnNew" class="btn small">🧹 New chat</button>
+      <button id="btnHelp" class="btn small">❓ Help</button>
+    </div>
+  </header>
+
+  <div class="container">
+    <!-- LEFT: Settings + KB -->
+    <aside class="left panel">
+      <div class="card">
+        <strong>Persona</strong>
+        <select id="persona">
+          <option value="tutor">Tutor (explain simply)</option>
+          <option value="critic">Critic (deep analysis)</option>
+          <option value="concise">Concise (bullets)</option>
+        </select>
+        <div class="meta" style="margin-top:6px">Controls tone & structure of answers.</div>
+      </div>
+
+      <div class="card">
+        <strong>Knowledge Base (RAG)</strong>
+        <div class="meta">Paste notes/snippets; we chunk + run TF‑IDF vector search.</div>
+        <textarea id="kbInput" placeholder="Paste book notes or AI topic notes here…"></textarea>
+        <div class="row" style="margin-top:8px">
+          <button id="btnAddDoc" class="btn">➕ Add to KB</button>
+          <span id="kbCount" class="chip">0 docs</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <strong>APIs & LLMs</strong>
+        <div class="row" style="margin-top:6px">
+          <span class="chip">Google Books: On</span>
+        </div>
+        <div class="meta" style="margin:6px 0 8px">Optional LLM for richer reasoning.</div>
+        <label>Provider</label>
+        <select id="llmProvider">
+          <option value="off">Off (offline NLP only)</option>
+          <option value="openai">OpenAI</option>
+          <option value="hf">HuggingFace Inference</option>
+        </select>
+        <label style="margin-top:8px;display:block">API Key</label>
+        <input id="llmKey" type="password" placeholder="sk-… or hf_…" />
+        <label style="margin-top:8px;display:block">Model</label>
+        <input id="llmModel" type="text" placeholder="gpt-4o-mini or bigscience/bloomz-560m" />
+      </div>
+
+      <div class="card">
+        <strong>Prompt Guardrails</strong>
+        <div id="guardStatus" class="chip" style="margin-top:6px">OK</div>
+      </div>
+
+      <div class="card">
+        <strong>Telemetry / Trace</strong>
+        <div id="trace"></div>
+      </div>
+    </aside>
+
+    <!-- CENTER: Chat -->
+    <section class="panel chat">
+      <div class="sessions" id="sessionsRow"></div>
+      <div id="messages" class="messages"></div>
+      <div class="footer">
+        <input id="userInput" type="text" placeholder="Ask about a book or an AI topic… e.g., 'Pride and Prejudice' or 'Explain RAG'"/>
+        <button id="sendBtn" class="btn">➤</button>
+      </div>
+    </section>
+
+    <!-- RIGHT: Inspector -->
+    <aside class="right panel">
+      <div class="card">
+        <strong>Conversation Memory</strong>
+        <div id="memory" class="meta" style="margin-top:6px"></div>
+      </div>
+      <div class="card">
+        <strong>Last Analysis</strong>
+        <div id="analyses"></div>
+      </div>
+      <div class="card">
+        <strong>Queue</strong>
+        <div id="queueView" class="meta">Idle</div>
+      </div>
+      <div class="card">
+        <strong>Tools</strong>
+        <ul style="margin-top:6px">
+          <li>Google Books metadata</li>
+          <li>TextRank summarizer</li>
+          <li>Keyword NER (names)</li>
+          <li>Sentiment (tiny AFINN)</li>
+          <li>TF‑IDF + Cosine RAG</li>
+        </ul>
+      </div>
+    </aside>
+  </div>
+
+  <template id="msgTpl">
+    <div class="msg"></div>
+    <div class="meta"></div>
+  </template>
+
+  <script>
+  // ---------- Utilities & State ----------
+  const el = id => document.getElementById(id);
+  const escapeHtml = (s='') => s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'","&#039;");
+  const trace = (label, data) => { const d=document.createElement('div'); d.innerHTML=`<details open><summary>${new Date().toLocaleTimeString()} — <strong>${label}</strong></summary><pre>${escapeHtml(JSON.stringify(data,null,2))}</pre></details>`; el('trace').prepend(d); };
+
+  const store = {
+    kb: JSON.parse(localStorage.getItem('kb_docs')||'[]'),
+    memory: JSON.parse(localStorage.getItem('chat_memory')||'[]'),
+    feedback: JSON.parse(localStorage.getItem('feedback')||'[]'),
+    save(){ localStorage.setItem('kb_docs', JSON.stringify(this.kb)); localStorage.setItem('chat_memory', JSON.stringify(this.memory)); localStorage.setItem('feedback', JSON.stringify(this.feedback)); }
+  };
+
+  // ---------- Sessions Row (your topics) ----------
+  const SESSIONS = [
+    'Intro to AI',
+    'NLP Basics',
+    'Tokenization & Embeddings',
+    'Vector Search (RAG)',
+    'Prompt Engineering',
+    'Agents & Tools',
+    'Async Queues',
+    'Evaluation & Feedback',
+    'Guardrails & Safety',
+    'Deploying Chatbots'
+  ];
+  function renderSessionsRow(){
+    el('sessionsRow').innerHTML = SESSIONS.map(t=>`<button class="btn small session-chip" data-topic="${escapeHtml(t)}">${escapeHtml(t)}</button>`).join('');
+    el('sessionsRow').querySelectorAll('button').forEach(b=>b.onclick=()=>{
+      addMsg(`<em>Topic selected:</em> <strong>${escapeHtml(b.dataset.topic)}</strong>`, 'me');
+      pushTask(async ()=>{
+        const txt = await explainTopic(b.dataset.topic);
+        addMsg(txt, 'bot');
+      });
+    });
+  }
+
+  async function explainTopic(topic){
+    // Offline concise primers; falls back to LLM if enabled
+    const primers = {
+      'Intro to AI': 'AI is about building systems that perform tasks requiring human intelligence. Core areas: perception, reasoning, learning, and language. Modern AI relies on data + models; deep learning dominates complex tasks.',
+      'NLP Basics': 'NLP turns text into structured signals (tokens → embeddings). Core tasks: classification, NER, QA, summarization, translation. Pipelines often include preprocessing, modeling, and evaluation.',
+      'Tokenization & Embeddings': 'Tokenization splits text into units; embeddings map tokens to vectors so similarity is geometric. Good embeddings make semantically similar text close in vector space.',
+      'Vector Search (RAG)': 'RAG retrieves relevant chunks from a knowledge base (via vectors/TF‑IDF) and gives them to a generator (LLM). Benefits: up-to-date, controllable, and more factual than model-only answers.',
+      'Prompt Engineering': 'Design instructions + examples to steer models. Tips: be explicit, set role/persona, add constraints, and show format. Use few-shot examples and guard against prompt injection.',
+      'Agents & Tools': 'Agents route user intents to tools (search, code, calculators). Keep tools idempotent and observable. Start simple with a router + few tools before adding recursion.',
+      'Async Queues': 'Serialize work to avoid race conditions. Queue tasks when calling multiple tools; show status to the user. Retries and timeouts matter in production.',
+      'Evaluation & Feedback': 'Collect thumbs-up/down and compare outputs to references. Track latency and errors. Create small test suites for regressions.',
+      'Guardrails & Safety': 'Detect and block unsafe content; refuse when needed. Sanitize HTML. Limit external calls. Log prompts and responses for audits.',
+      'Deploying Chatbots': 'Bundle UI + API, add auth, rate limits, and caching. For RAG, persist vectors; for privacy, keep PII out of logs. Ship traces and dashboards.'
+    };
+    let answer = primers[topic] || 'No notes yet for this topic.';
+    const llmAns = await callLLMIfAny(`Explain the topic succinctly with 3 bullet points and one tip. Topic: ${topic}`);
+    if(llmAns) answer = llmAns;
+    return formatAsBullets(answer);
+  }
+  function formatAsBullets(text){
+    if(/\n- /.test(text)) return text; // already bullets
+    const s = text.split(/(?<=\.)\s+/).slice(0,4).map(x=>`• ${x}`).join('\n');
+    return s;
+  }
+
+  // ---------- Guardrails ----------
+  const blockedPatterns = [/hack|exploit|malware|phish/i,/sex|porn|nsfw/i,/terror|bomb/i];
+  function passesGuardrails(text){ return !blockedPatterns.some(re=>re.test(text)); }
+
+  // ---------- NLP helpers ----------
+  const sentenceSplit = (t)=> (t||'').replace(/\s+/g,' ').match(/[^.!?]+[.!?]*/g)||[];
+  function chunkByTokens(text, target=120){ const s=sentenceSplit(text); const out=[]; let cur=[],n=0; for(const x of s){ const tok=x.trim().split(/\s+/).length; if(n+tok>target&&cur.length){ out.push(cur.join(' ')); cur=[]; n=0; } cur.push(x.trim()); n+=tok; } if(cur.length) out.push(cur.join(' ')); return out; }
+
+  function buildTfIdf(docs){ const df=new Map(); const tf=docs.map(d=>{ const c=new Map(); const toks=(d.toLowerCase().match(/[a-z']+/g)||[]); toks.forEach(t=>c.set(t,(c.get(t)||0)+1)); c.forEach((_,t)=>df.set(t,(df.get(t)||0)+1)); return {c,size:toks.length}; }); const idf=new Map(); const N=docs.length; df.forEach((v,t)=>idf.set(t,Math.log(1+N/(1+v)))); return {tf,idf,N}; }
+  function vectorize(tfidf, text){ const toks=(text.toLowerCase().match(/[a-z']+/g)||[]); const cw=new Map(); toks.forEach(t=>cw.set(t,(cw.get(t)||0)+1)); const v=new Map(); cw.forEach((c,t)=>v.set(t,(c/toks.length)*(tfidf.idf.get(t)||0))); return v; }
+  function cosine(a,b){ let dot=0,na=0,nb=0; const keys=new Set([...a.keys(),...b.keys()]); for(const k of keys){ const va=a.get(k)||0,vb=b.get(k)||0; dot+=va*vb; na+=va*va; nb+=vb*vb; } return dot/(Math.sqrt(na||1)*Math.sqrt(nb||1)); }
+  function textrank(text, topK=3){ const s=sentenceSplit(text).map(x=>x.trim()).filter(Boolean); if(!s.length) return ''; const tfidf=buildTfIdf(s); const vecs=s.map(x=>vectorize(tfidf,x)); const sc=s.map((_,i)=>vecs.reduce((acc,v,j)=>acc+(i===j?0:cosine(vecs[i],vecs[j])),0)); const idx=sc.map((v,i)=>[v,i]).sort((a,b)=>b[0]-a[0]).slice(0,topK).sort((a,b)=>a[1]-b[1]).map(x=>x[1]); return idx.map(i=>s[i]).join(' '); }
+  function extractNames(text){ const set=new Set(); const re=/\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,3})\b/g; let m; while((m=re.exec(text))) set.add(m[1]); return [...set].filter(n=>!['I','The','A','And','Of','In','On','To','By'].includes(n)); }
+  const AFINN=new Map(Object.entries({"love":3,"great":3,"good":2,"amazing":3,"excellent":3,"like":1,"favorite":2,"bad":-2,"worst":-3,"boring":-2,"hate":-3,"poor":-2,"confusing":-1,"sad":-2,"dark":-1}));
+  function sentiment(text){ const toks=(text.toLowerCase().match(/[a-z']+/g)||[]); let s=0; toks.forEach(t=>s+=AFINN.get(t)||0); return {score:s,label:s>1?'positive':s<-1?'negative':'neutral'}; }
+
+  // ---------- Google Books ----------
+  async function googleBook(query){ const url=`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=1`; const res=await fetch(url); if(!res.ok) throw new Error('Books API error'); const data=await res.json(); const v=data.items?.[0]?.volumeInfo; if(!v) return null; return {title:v.title,authors:v.authors||[],description:v.description||'',image:v.imageLinks?.thumbnail||'',rating:v.averageRating||null,categories:v.categories||[]}; }
+
+  // ---------- LLM (optional) ----------
+  async function callLLMIfAny(prompt){ const provider=el('llmProvider').value; const key=el('llmKey').value.trim(); const model=el('llmModel').value.trim() || (provider==='openai'?'gpt-4o-mini':''); if(provider==='off'||!key) return null; try{ if(provider==='openai'){ const r=await fetch('https://api.openai.com/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${key}`},body:JSON.stringify({model,messages:[{role:'system',content:'You are a helpful AI tutor.'},{role:'user',content:prompt}],temperature:0.3})}); const j=await r.json(); trace('LLM(OpenAI)', j); return j.choices?.[0]?.message?.content?.trim()||null; } else if(provider==='hf'){ const url='https://api-inference.huggingface.co/models/'+encodeURIComponent(model||'bigscience/bloomz-560m'); const r=await fetch(url,{method:'POST',headers:{'Authorization':`Bearer ${key}`,'Content-Type':'application/json'},body:JSON.stringify({inputs:prompt})}); const j=await r.json(); trace('LLM(HF)', j); const txt=Array.isArray(j)?j.map(x=>x.generated_text||'').join('\n'):(j.generated_text||''); return (txt||'').trim(); } }catch(e){ trace('LLM error', String(e)); return null; } }
+
+  // ---------- Agent & Tools ----------
+  function routeIntent(text){ const t=text.toLowerCase(); if(/rating|stars?/.test(t)) return 'rating'; if(/theme|motif|message/.test(t)) return 'theme'; if(/character|protagonist|antagonist|author|who wrote/.test(t)) return 'characters'; if(/summar(y|ise|ize)|tl;dr|overview/.test(t)) return 'summary'; if(/explain|what is|how does|rag|embedding|agent|prompt/.test(t)) return 'topic'; return 'chat'; }
+
+  const Tools = {
+    async searchBooks(ctx){ const q=ctx.book||ctx.query; if(!q) return {ok:false,error:'no query'}; const meta=await googleBook(q); trace('Tool:searchBooks',{q,meta}); return {ok:true,data:meta}; },
+    summarize(text){ const s=textrank(text,3); trace('Tool:summarize',{len:text.length,s}); return s; },
+    extract(text){ const names=extractNames(text).slice(0,20); trace('Tool:extract',{names}); return names; },
+    analyze(text){ const th=[]; const has=(k)=>new RegExp(`\\b${k}\\b`,'i').test(text); if(has('love')||has('marriage')) th.push('Love & Relationships'); if(has('war')||has('battle')) th.push('War & Conflict'); if(has('power')||has('control')) th.push('Power & Society'); if(has('identity')||has('self')) th.push('Identity & Self‑discovery'); if(has('death')||has('grief')) th.push('Mortality & Grief'); if(!th.length) th.push('Theme inference limited — add notes or enable LLM.'); const sent=sentiment(text); trace('Tool:analyze',{themes:th,sent}); return {themes:th,sentiment:sent}; },
+    vectorSearch(query){ const docs = store.kb.flatMap(d=>chunkByTokens(d.text,120).map((ch,i)=>({id:`${d.id}#${i}`,text:ch}))); if(!docs.length) return []; const tfidf=buildTfIdf(docs.map(d=>d.text)); const qv=vectorize(tfidf, query||''); return docs.map(d=>({id:d.id,text:d.text,score:cosine(qv, vectorize(tfidf,d.text))})).sort((a,b)=>b.score-a.score).slice(0,3); }
+  };
+
+  async function orchestrate(query){
+    if(!passesGuardrails(query)){ el('guardStatus').textContent='Blocked'; return {answer:'Sorry, I can\'t help with that.',sources:[]}; } else { el('guardStatus').textContent='OK'; }
+    const persona=el('persona').value;
+    const style= persona==='tutor'?'Explain simply with steps.': persona==='critic'?'Provide nuanced literary analysis with evidence.':'Answer briefly with bullets.';
+
+    const intent = routeIntent(query);
+    const ctx = {query};
+
+    // RAG context
+    const ragTop = Tools.vectorSearch(query);
+    const ragText = (ragTop||[]).map(r=>r.text).join('\n');
+
+    // If the query looks like a book title, fetch metadata
+    let book=null; try{ book=(await Tools.searchBooks(ctx)).data; }catch{}
+
+    let workingText=''; if(book?.description) workingText += book.description+'\n'; if(ragText) workingText += ragText;
+
+    let answer='';
+    if(intent==='summary'){
+      const sum = Tools.summarize(workingText||query) || 'Not enough text to summarize.';
+      answer = `${book?`<strong>${escapeHtml(book.title)}</strong> — `:''}${escapeHtml(sum)}`;
+    } else if(intent==='theme'){
+      const res = Tools.analyze(workingText||query); answer = `Likely themes: ${res.themes.join(', ')}. Sentiment: <strong>${res.sentiment.label}</strong> (score ${res.sentiment.score}).`;
+    } else if(intent==='characters'){
+      const names = Tools.extract(workingText||query); const auth = book?.authors?.length?` Author(s): <strong>${escapeHtml(book.authors.join(', '))}</strong>.`:''; answer = `${names.length?`Possible characters/people: ${escapeHtml(names.join(', '))}.`: 'Names not detected.'}${auth}`;
+    } else if(intent==='rating'){
+      answer = book?.rating? `Average rating for <strong>${escapeHtml(book.title)}</strong>: ⭐ ${book.rating}/5.` : 'No rating available.';
+    } else if(intent==='topic'){
+      answer = await explainTopic(query);
+    } else {
+      // Try LLM with context
+      const prompt = `Persona: ${persona}. ${style}\nContext:${book?`\nTitle: ${book.title}\nAuthors: ${book.authors?.join(', ')||''}`:''}${ragText?`\nNotes:\n${ragText}\n`:''}\nQuestion: ${query}\nAnswer clearly.`;
+      const llm = await callLLMIfAny(prompt);
+      if(llm) answer = llm; else {
+        // fallback heuristic
+        const sum = Tools.summarize(workingText||query);
+        answer = sum || 'Please provide a book title or add notes to the KB for a better answer.';
+      }
+    }
+
+    const sources=[]; if(book?.title) sources.push(`Google Books: ${book.title}`); if(ragTop?.length) sources.push(`KB: ${ragTop.map(x=>x.id).join(', ')}`);
+    return {answer,book,sources,intent,ragTop};
+  }
+
+  // ---------- Queue ----------
+  const queue=[]; let running=false; function pushTask(fn){ const id=Math.random().toString(36).slice(2,8); queue.push({id,fn,status:'queued'}); renderQueue(); runQueue(); }
+  async function runQueue(){ if(running) return; running=true; while(queue.length){ const t=queue[0]; t.status='running'; renderQueue(); try{ await t.fn(); t.status='done'; }catch(e){ t.status='error'; t.error=String(e);} renderQueue(); queue.shift(); } running=false; renderQueue(); }
+  function renderQueue(){ el('queueView').textContent = queue.length? queue.map(q=>`${q.id}:${q.status}`).join('  ') : 'Idle'; }
+
+  // ---------- UI: messages & quick replies ----------
+  function addMsg(html, who='bot'){
+    const wrap=document.createElement('div'); wrap.className='msg '+(who==='me'?'me':'bot'); wrap.innerHTML=html; const meta=document.createElement('div'); meta.className='meta'; meta.innerHTML = who==='me'? 'You' : 'AI • <button class="btn small" data-fb="up">👍</button> <button class="btn small" data-fb="down">👎</button>';
+    const box=document.createElement('div'); box.appendChild(wrap); box.appendChild(meta); el('messages').appendChild(box); el('messages').scrollTop=el('messages').scrollHeight;
+    if(who==='bot'){ meta.querySelectorAll('button').forEach(b=>{ b.onclick=()=>{ store.feedback.push({time:Date.now(),vote:b.dataset.fb,text:wrap.textContent}); store.save(); renderMemory(); }; }); }
+  }
+  function addQuickReplies(){ const opts=['Summary','Theme','Characters','Rating','New Book','Explain RAG','Prompt tips']; const div=document.createElement('div'); div.className='quick'; opts.forEach(o=>{ const btn=document.createElement('button'); btn.textContent=o; btn.onclick=()=>handleFollowUp(o); div.appendChild(btn); }); el('messages').appendChild(div); el('messages').scrollTop=el('messages').scrollHeight; }
+
+  function renderMemory(){ el('memory').innerHTML = `Turns: ${store.memory.length} • Feedback: ${store.feedback.length}` + (store.memory.slice(-6).map(m=>`<div>· ${new Date(m.time).toLocaleTimeString()} — ${escapeHtml(m.user.slice(0,60))}</div>`).join(''));
+  }
+  function showAnalysis({intent,sources,ragTop}){ el('analyses').innerHTML = `<div class="row"><span class="chip">Intent</span><span>${escapeHtml(intent||'')}</span></div><div class="row"><span class="chip">Sources</span><span>${escapeHtml((sources||[]).join(' | '))}</span></div>` + (ragTop?.length?`<details><summary class="chip">Top RAG chunks</summary><pre>${escapeHtml(ragTop.map(x=>`(${x.score.toFixed(3)}) ${x.text.slice(0,300)}…`).join('\n\n'))}</pre></details>`:''); }
+
+  // ---------- Chat handlers ----------
+  let currentBookTitle=''; let currentBookMeta=null;
+
+  async function handleSend(){
+    const text = el('userInput').value.trim(); if(!text) return; el('userInput').value=''; addMsg(escapeHtml(text),'me');
+    if(!passesGuardrails(text)){ addMsg('Request blocked by guardrails.','bot'); return; }
+
+    // special command: New Book
+    if(/new book/i.test(text)){ currentBookTitle=''; currentBookMeta=null; addMsg('Okay, type the new book title.','bot'); return; }
+
+    // If no current book set and the user typed a noun phrase, attempt to treat as a title
+    if(!currentBookTitle){ currentBookTitle=text; try{ currentBookMeta=await googleBook(currentBookTitle);}catch{} }
+
+    pushTask(async ()=>{
+      const out = await orchestrate(text);
+
+      // If we got book metadata, show summary automatically
+      if(out.book && !/summary|theme|character|rating|explain|what|how/i.test(text)){
+        const summary = out.book.description? escapeHtml(out.book.description) : 'No summary available.';
+        const cover = out.book.image? `<br><img src="${escapeHtml(out.book.image)}" style="max-width:120px;border-radius:10px;border:1px solid #243271;margin-top:8px"/>` : '';
+        addMsg(`<strong>${escapeHtml(out.book.title)}</strong> — summary:<br>${summary}${cover}`, 'bot');
+      }
+
+      addMsg(out.answer.replace(/\n/g,'<br>'), 'bot');
+      addQuickReplies();
+      store.memory.push({time:Date.now(), user:text, intent:out.intent}); store.save(); renderMemory(); showAnalysis(out);
+    });
+  }
+
+  function handleFollowUp(q){
+    el('userInput').value = q; handleSend();
+  }
+
+  // ---------- KB events ----------
+  el('btnAddDoc').onclick = ()=>{ const text=el('kbInput').value.trim(); if(!text) return; store.kb.push({id:store.kb.length+1,text,added:Date.now()}); el('kbInput').value=''; store.save(); el('kbCount').textContent=`${store.kb.length} docs`; };
+  el('kbCount').textContent=`${store.kb.length} docs`;
+
+  // ---------- Header buttons ----------
+  el('sendBtn').onclick = handleSend; el('userInput').addEventListener('keydown',e=>{ if(e.key==='Enter') handleSend(); });
+  el('btnNew').onclick = ()=>{ el('messages').innerHTML=''; store.memory=[]; store.save(); renderMemory(); showAnalysis({intent:'',sources:[],ragTop:[]}); addMsg("Hello! Tell me a book or pick a topic from the row above. I can fetch metadata, summarize, extract characters, infer themes, explain AI topics, and use your KB with RAG.",'bot'); };
+  el('btnHelp').onclick = ()=>{
+    addMsg(`<strong>How it works</strong><br>• Type a book title — I fetch metadata from Google Books and summarize it.<br>• Ask follow‑ups: Theme, Characters/Author, Rating, or anything else.<br>• Add your own notes to the KB (left). I use RAG (TF‑IDF + cosine) to answer with your context.<br>• Click a session in the top row to get a short primer for that AI topic.<br>• (Optional) Enter an LLM API key to improve reasoning.`, 'bot');
+  };
+
+  // ---------- Welcome ----------
+  renderSessionsRow();
+  addMsg("Hello! I’m your AI‑powered literature & NLP tutor. Type a book title (e.g., <em>1984</em>) or click a topic like <em>Vector Search (RAG)</em>.",'bot');
+  renderMemory();
+  </script>
+</body>
+</html>
